@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import random
 
@@ -7,13 +8,13 @@ import random
 # C -> m * nlables
 # output -> dim(L-1) * nlabels
 def softmax_grad_w(X, W, C):
-    m = X.shape[0]
+    m = X.shape[-1]
 
     # use for all calculations
-    x_w = np.exp(np.matmul(X.transpose(), W)) # m * nlabels
+    x_w = np.exp(X.T @ W) # m * nlabels
     stacked_x_w = np.array(x_w.sum(axis=1)) # m * 1
     diag = np.linalg.inv(np.diag(stacked_x_w)) # m * m diag
-    diag_exp = np.matmul(diag, x_w) # m * nlabels
+    diag_exp = diag @ x_w # m * nlabels
     e = np.subtract(diag_exp, C) # m * nlabels
     return 1/m * np.matmul(X, e)
 
@@ -23,7 +24,7 @@ def softmax_grad_w(X, W, C):
 # C -> m * nlables
 # output -> dim(L-1) * nlabels
 def softmax_grad_inp(X, W, C):
-    m = X.shape[0]
+    m = X.shape[-1]
 
     # use for all calculations
     w_x = np.exp(np.matmul(W.T, X)) # n * m
@@ -43,34 +44,49 @@ def sgd(grad_f, X, W, C, lr=0.001, batch_size=1):
     return updated_W
 
 
-def softmax_n(X, W, C):
-    m = X.shape[0]
-    x_w = np.exp(np.matmul(X.transpose(), W)) # m * nlabels
+# C -> m * nlables
+def softmax_apply(X, W, C):
+
+    m = X.shape[-1]
+
+    x_w = np.exp(X.T @ W) # m * nlabels
     stacked_x_w = np.array(x_w.sum(axis=1)) # m * 1
-    diag = np.linalg.inv(np.diag(stacked_x_w))  # m * m diag
-    log_out = np.log(np.matmul(diag, x_w))
-    c_log_out = np.trace(np.matmul(C.T, log_out))
+    diag = np.linalg.inv(np.diag(stacked_x_w)) # m * m diag
+    log_out = np.log(diag @ x_w) # m * nlabels
+    c_log_out = np.trace(C.T @ log_out)
+
     return -1/m * c_log_out
 
 
 #
 def grad_test():
-    d = np.random.rand(3, 1)
-    x = np.random.rand(3, 1)
-    c = np.asarray([[1]])
-    w = np.random.rand(3, 1)
+    d = np.random.rand(5, 3)
+    x = np.random.rand(5, 2)
+    c = np.random.rand(2, 3)
+    w = np.random.rand(5, 3)
     normalized_d = d / np.linalg.norm(d)
-    epsilon = [1e-2, 1e-3, 1e-4, 1e-5]
-    fx = softmax_n(x, w, c)
+    epsilon = np.geomspace(0.5, 0.5 ** 30 , 30)
+    fx = softmax_apply(x, w, c)                     # f(w)
+    softmax_grad_ret = softmax_grad_w(x, w, c)      # grad(w)
+    no_grad, w_grad = [], []
     for e in epsilon:
-        e_normalized_d = e * normalized_d
-        x_perturbatzia = np.add(x, e_normalized_d)
-        fx_d = softmax_n(x_perturbatzia, w, c)
-        softmax_grad_ret = softmax_grad_w(x, w, c)
+        e_normalized_d = e * normalized_d           # e * d
+        w_perturbatzia = np.add(w, e_normalized_d)  # w + e*d
+        fx_d = softmax_apply(x, w_perturbatzia, c)  # f(w + e*d)
+        normalized_d_r = normalized_d.ravel()       # d
+        print(np.linalg.norm(normalized_d_r))
+        softmax_grad_ret_r = softmax_grad_ret.ravel()
         print('epsilon: ', e)
-        print(abs(fx_d - fx))
-        print(abs(fx_d - fx - e * np.matmul(normalized_d.transpose(), softmax_grad_ret)))
+        no_grad.append(abs(fx_d - fx))
+        w_grad.append(abs(fx_d - fx - e * normalized_d_r.T @ softmax_grad_ret_r))
+        print('fx_d - fx:', abs(fx_d - fx))
+        print('fx_d - fx - grad: ', abs(fx_d - fx - e * normalized_d_r.T @ softmax_grad_ret_r))
 
+    plt.plot(epsilon, no_grad, 'k', label='No gradient')
+    plt.plot(epsilon, w_grad, 'g', label='With gradient')
+    plt.yscale('log')
+    plt.legend()
+    plt.show()
 
-# grad_test()
+grad_test()
 # sgd(softmax_grad, np.eye(4), np.random.rand(3, 6), np.eye(4), batch_size=2)
