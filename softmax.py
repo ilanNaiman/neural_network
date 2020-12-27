@@ -16,6 +16,7 @@ def cross_entropy_grad_w(X, W, C):
     stacked_x_w = np.array(x_w.sum(axis=1)) # m * 1
     diag = np.linalg.inv(np.diag(stacked_x_w)) # m * m diag
     diag_exp = diag @ x_w # m * nlabels
+    # diag_exp = x_w / stacked_x_w
     e = np.subtract(diag_exp, C) # m * nlabels
     return 1/m * np.matmul(X, e)
 
@@ -80,18 +81,21 @@ def grad_test():
     d = np.random.rand(5, 3)
     x = np.random.rand(5, 2)
     c = np.random.rand(2, 3)
+    c[1,:] = 1 - c[0,:]
+    print(c)
     w = np.random.rand(5, 3)
     normalized_d = d / np.linalg.norm(d)
-    epsilon = np.geomspace(0.5, 0.5 ** 30 , 30)
+    epsilon = np.geomspace(0.5, 0.5 ** 20, 20)
+    i = range(20)
     fx = cross_entropy_loss_apply(x, w, c)                     # f(w)
-    softmax_grad_ret = cross_entropy_grad_w(x, w, c)      # grad(w)
+    softmax_grad_ret = cross_entropy_grad_w(x, w, c)   # grad(w)
     no_grad, w_grad = [], []
     for e in epsilon:
         e_normalized_d = e * normalized_d           # e * d
         w_perturbatzia = np.add(w, e_normalized_d)  # w + e*d
         fx_d = cross_entropy_loss_apply(x, w_perturbatzia, c)  # f(w + e*d)
         normalized_d_r = normalized_d.ravel()       # d
-        print(np.linalg.norm(normalized_d_r))
+        # print(np.linalg.norm(normalized_d_r))
         softmax_grad_ret_r = softmax_grad_ret.ravel()
         print('epsilon: ', e)
         no_grad.append(abs(fx_d - fx))
@@ -99,8 +103,8 @@ def grad_test():
         print('fx_d - fx:', abs(fx_d - fx))
         print('fx_d - fx - grad: ', abs(fx_d - fx - e * normalized_d_r.T @ softmax_grad_ret_r))
 
-    plt.plot(epsilon, no_grad, 'k', label='No gradient')
-    plt.plot(epsilon, w_grad, 'g', label='With gradient')
+    plt.plot(i, no_grad, 'k', label='No gradient')
+    plt.plot(i, w_grad, 'g', label='With gradient')
     plt.yscale('log')
     plt.legend()
     plt.show()
@@ -163,8 +167,8 @@ def sgd_test():
     print('test error: {}'.format(np.mean(acc_test_err)))
 
 
-sgd_test()
-# grad_test()
+# sgd_test()
+grad_test()
 # x = np.random.rand(5, 4)
 # w = np.random.rand(5, 3)
 # softmax_predict(x, w)
