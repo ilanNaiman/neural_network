@@ -110,6 +110,42 @@ def grad_test():
     plt.show()
 
 
+def new_grad_test():
+    x = np.random.rand(5, 10)  # 5 features, 10 samples
+
+    d = np.random.rand(5, 3)   # 5 features, 3 labels
+    d = d / np.linalg.norm(d)
+
+    w = np.random.rand(5, 3)   # 5 features, 3 labels
+
+    labels = np.random.randint(3, size=10)  # random draw of labels for 10 samples
+    c = np.zeros((labels.size, 3))  # 10 samples, 3 labels
+    c[np.arange(labels.size), labels] = 1  # columns in c are one-hot encoded
+
+    f_x = cross_entropy_loss_apply(x, w, c)  # compute f(x)
+    grad_x = cross_entropy_grad_w(x, w, c)  # compute grad(x)
+
+    no_grad, w_grad = [], []
+    eps_vals = np.geomspace(0.5, 0.5 ** 20, 20)
+    for eps in eps_vals:
+        eps_d = eps * d
+        f_xed = cross_entropy_loss_apply(x, w + eps_d, c)  # compute f(x + ed)
+
+        o_eps = abs(f_xed - f_x)
+        o_eps_sq = abs(f_xed - f_x - eps_d.ravel().T @ grad_x.ravel())
+        print(o_eps)
+        print(o_eps_sq)
+        no_grad.append(o_eps)
+        w_grad.append(o_eps_sq)
+
+    l = range(20)
+    plt.plot(l, no_grad, 'k', label='No gradient')
+    plt.plot(l, w_grad, 'g', label='With gradient')
+    plt.yscale('log')
+    plt.legend()
+    plt.show()
+
+
 def sgd_test():
 
     Xtrain, Xtest, Ytrain, Ytest = loadGMMData()
@@ -168,7 +204,7 @@ def sgd_test():
 
 
 # sgd_test()
-grad_test()
+new_grad_test()
 # x = np.random.rand(5, 4)
 # w = np.random.rand(5, 3)
 # softmax_predict(x, w)
