@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.matlib as npm
 from sklearn.utils import shuffle
 from data_loader import loadGMMData
 from tqdm import tqdm
@@ -42,7 +43,7 @@ class CrossEntropy:
         # use for all calculations
         w_x = np.exp(np.matmul(W.T, X)) # n * m
         stacked_x_w = np.array(w_x.sum(axis=0)) # 1 * m
-        rep_w_x = np.matlib.repmat(stacked_x_w, w_x.shape[0], 1) # n * m
+        rep_w_x = npm.repmat(stacked_x_w, w_x.shape[0], 1) # n * m
         div_w_x = np.divide(w_x, rep_w_x) # n * m
         subc_w_x = np.subtract(div_w_x, C.T) # n * m
         return 1/m * np.matmul(W, subc_w_x) # d * m

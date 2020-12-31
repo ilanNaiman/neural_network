@@ -28,7 +28,7 @@ def main():
     n_layer = 2
     dim_in = 5
     dim_out = 5
-    epochs = 7
+    epochs = 30
     opt = SGD(lr=0.01)
 
     model = Net(n_layer, dim_in, dim_out, opt)
@@ -46,14 +46,17 @@ def main():
         for batch, labels in tqdm(zip(all_batches, all_labels)):
             labels = labels.T
 
-            output = model(batch, labels)
+            outputs = model(batch, labels)
 
-            loss = model.cross_entropy(output, model.softmax.W, labels)
+            loss = model.cross_entropy(outputs, model.softmax.W, labels)
             loss_l.append(loss)
+
+            model.backward()
+            model.step()
 
             # calculate train error
             labels = get_index(labels)
-            prediction = predict(model, batch, model.softmax.W)
+            prediction = predict(model, outputs)
 
             acc_train = np.append(acc_train, prediction == labels, axis=0)
 
@@ -62,22 +65,29 @@ def main():
         accs_hyper_params_train.append(np.mean(acc_train))
         accs_hyper_params_test.append(np.mean(test_accuracy(model, test_sets[2])))
 
-    plt.plot(range(epochs), accs_hyper_params_train, label='Train Accuracy')
-    plt.plot(range(epochs), accs_hyper_params_test, label='Validation Accuracy')
-    # plt.title('Acc of lr={} and batch size={}'.format(lr, bs))
-    plt.legend()
-    plt.show()
+    # plt.plot(range(epochs), accs_hyper_params_train, label='Train Accuracy')
+    # plt.plot(range(epochs), accs_hyper_params_test, label='Validation Accuracy')
+    # # plt.title('Acc of lr={} and batch size={}'.format(lr, bs))
+    # plt.legend()
+    # plt.show()
 
 
 def test_accuracy(model, test_sets):
     # test loop
     acc_test = []
+    loss_test = []
     all_batches, all_labels = test_sets
     for batch, labels in tqdm(zip(all_batches, all_labels)):
-
+        labels = labels.T
         # calculate test acc
-        labels = get_index(labels.T)
-        prediction = predict(model, batch, model.softmax.W)
+        outputs = model(batch, labels)
+
+        loss = model.cross_entropy(outputs, model.softmax.W, labels)
+        loss_test.append(loss)
+
+        # calculate train error
+        labels = get_index(labels)
+        prediction = predict(model, outputs)
 
         acc_test = np.append(acc_test, prediction == labels, axis=0)
 
@@ -102,13 +112,15 @@ def get_index(labels):
     return np.asarray([np.where(l == 1)[0][0] for l in labels])
 
 
-def predict(model, batch, W):
-    return np.asarray([p[0] for p in softmax_predict(model, batch, W)])
+def predict(model, output):
+    return np.asarray([p[0] for p in softmax_predict(model, output)])
 
-def softmax_predict(model, X, W):
-    softmax_res = model.softmax(X, W)
+
+def softmax_predict(model, output):
+    softmax_res = model.softmax(output)
     max_args = np.argmax(softmax_res, axis=1).reshape(-1, 1)
     return max_args
+
 
 if __name__ == '__main__':
     main()

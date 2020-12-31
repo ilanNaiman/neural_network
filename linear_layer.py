@@ -51,12 +51,12 @@ class Linear:
         self.g_x = self.jackTMV_x(x, v)
         self.g_w = self.jackTMV_w(x, v)
         self.g_b = self.jackTMV_b(x, v)
-        self.v = np.matmul(self.g_x.T, v)
+        # self.v = np.matmul(self.g_x.T, v)
 
     def step(self, opt):
         assert self.g_w is not None
-        self.W = opt(self.g_w, self.W)
-        self.b = opt(self.g_b, self.b)
+        self.W = opt.step(self.g_w, self.W)
+        self.b = opt.step(self.g_b, self.b)
 
     def __call__(self, x):
         return self.act.activate(np.add(np.matmul(self.W, x), self.b))

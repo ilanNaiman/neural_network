@@ -37,6 +37,7 @@ class Net:
         :return:
         """
 
+        self.hidden_units = [input_]
         # save labels for backward pass
         self.labels = labels
 
@@ -47,7 +48,7 @@ class Net:
         for layer in self.layers:
             self.hidden_units.append(layer(self.hidden_units[-1]))
 
-        return self.softmax(self.hidden_units[-1])
+        return  self.hidden_units[-1]
 
     def backward(self):
 
