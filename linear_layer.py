@@ -1,5 +1,6 @@
 import numpy as np
 from activations import tanh
+import matplotlib.pyplot as plt
 import random
 
 
@@ -53,18 +54,31 @@ def jacMV_test():
     d = np.random.rand(3, 1)
     x = np.random.rand(3, 1)
     normalized_d = d / np.linalg.norm(d)
-    epsilon = [1e-2, 1e-3, 1e-4, 1e-5]
+
+    eps_num = 20
+    eps_vals = np.geomspace(0.5, 0.5 ** eps_num, eps_num)
     lin1 = Linear(3, 3, tanh)
     fx = lin1.forward(x)
-    for e in epsilon:
-        e_normalized_d = e * normalized_d
+    no_grad, w_grad = [], []
+
+    for eps in eps_vals:
+        e_normalized_d = eps * normalized_d
         x_perturbatzia = np.add(x, e_normalized_d)
         fx_d = lin1.forward(x_perturbatzia)
         jackMV_ = lin1.jackMV(x, e_normalized_d)
         print(jackMV_)
-        print('epsilon: ', e)
+        print('epsilon: ', eps)
         print(np.linalg.norm(np.subtract(fx_d, fx)))
         print(np.linalg.norm(np.subtract(np.subtract(fx_d, fx), jackMV_)))
+        no_grad.append(np.linalg.norm(np.subtract(fx_d, fx)))
+        w_grad.append(np.linalg.norm(np.subtract(np.subtract(fx_d, fx), jackMV_)))
+
+    l = range(eps_num)
+    plt.plot(l, no_grad, 'k', label='No gradient')
+    plt.plot(l, w_grad, 'g', label='With gradient')
+    plt.yscale('log')
+    plt.legend()
+    plt.show()
 
 
 def jacTMV_test():
@@ -82,8 +96,8 @@ def jacTMV_test():
     print(abs(np.subtract(u_jack, v_jackT)))
 
 
-
-jacTMV_test()
+# jacTMV_test()
+# jacMV_test()
 # def pre:
 #     sample = random.sample(list(range(X.shape[1])), batch_size)
 #     batch_X = X[:][sample]
