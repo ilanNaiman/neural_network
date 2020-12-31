@@ -17,9 +17,11 @@ class Net:
         self.hidden_units = []
         self.linear_inp = None
         self.opt = opt
+        self.labels = None
 
         self.softmax = Softmax(self.dim_L if n_layer > 0 else self.dim_in, self.dim_out)
         self.cross_entropy = CrossEntropy()
+        self._init_layers()
 
     def _init_layers(self):
 
@@ -35,6 +37,9 @@ class Net:
         :return:
         """
 
+        # save labels for backward pass
+        self.labels = labels
+
         # applies also the activation function
         self.hidden_units.append(self.linear_inp(input_))
 
@@ -42,24 +47,22 @@ class Net:
         for layer in self.layers:
             self.hidden_units.append(layer(self.hidden_units[-1]))
 
-        return self.softmax(input_)
+        return self.softmax(self.hidden_units[-1])
 
-    def backward(self, input_, labels):
-
-        backward_grad = []
+    def backward(self):
 
         hidden_units = self.hidden_units
         hidden_units.reverse()
 
         # cross entropy grad
-        self.cross_entropy.grad_w(hidden_units[0], self.softmax.W, labels)
-        inp_grads = self.cross_entropy.grad_inp(hidden_units[0], self.softmax.W, labels)
+        self.cross_entropy.grad_w(hidden_units[0], self.softmax.W, self.labels)
+        inp_grads = self.cross_entropy.grad_inp(hidden_units[0], self.softmax.W, self.labels)
 
         for i, layer in enumerate(self.layers, 1):
             layer.backward(hidden_units[i], inp_grads)
             inp_grads = layer.g_x
 
-        self.linear_inp.backward(input_, inp_grads)
+        self.linear_inp.backward(hidden_units[-1], inp_grads)
 
     def step(self):
 
@@ -69,8 +72,3 @@ class Net:
             layer.step(self.opt)
 
         self.linear_inp.step(self.opt)
-
-# def softmax_predict(X, W):
-#     softmax_res = softmax(X, W)
-#     max_args = np.argmax(softmax_res, axis=1).reshape(-1, 1)
-#     return max_args

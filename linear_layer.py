@@ -7,13 +7,16 @@ import random
 class Linear:
 
     def __init__(self, dim_in, dim_out, act):
-        self.W = np.random.rand(dim_out, dim_in)
+        self.W = self._init_weights(dim_out, dim_in)
         self.b = np.random.rand(dim_out, 1)
         self.g_x = None
         self.g_w = None
         self.g_b = None
         self.v = None
         self.act = act()
+
+    def _init_weights(self, prev_layer, next_layer):
+        return np.random.randn(prev_layer, next_layer) * np.sqrt(2 / next_layer)
 
     def jackTMV_b(self, x, v):
         return np.multiply(self.act.deriv((np.add(np.matmul(self.W, x), self.b))), v)
@@ -176,7 +179,7 @@ def jacTMV_test():
 # jacTMV_test()
 # jacMV_x_test()
 # jacMV_b_test()
-jacMV_w_test()
+# jacMV_w_test()
 # def pre:
 #     sample = random.sample(list(range(X.shape[1])), batch_size)
 #     batch_X = X[:][sample]
