@@ -7,12 +7,11 @@ from tqdm import tqdm
 
 class CrossEntropy:
 
-    def __init__(self, dim_in, dim_out):
+    def __init__(self):
+        self.grad_W = None
+        return
 
-        self.dim_in = dim_in
-        self.dim_out = dim_out
-
-    def cross_entropy_grad_w(self, X, W, C):
+    def grad_w(self, X, W, C):
         """
         :param X: dim(L-1) * m (m number of examples, n dimension of each exmaple)
         :param W : dim(L-1) * nlabels
@@ -28,9 +27,9 @@ class CrossEntropy:
         diag_exp = diag @ x_w # m * nlabels
         # diag_exp = x_w / stacked_x_w
         e = np.subtract(diag_exp, C) # m * nlabels
-        return 1/m * np.matmul(X, e)
+        self.grad_W = 1/m * np.matmul(X, e)
 
-    def cross_entropy_grad_inp(self, X, W, C):
+    def grad_inp(self, X, W, C):
         """
         :self.W : dim(L-1) * nlabels weights
         :param X: dim(L-1) * m (m number of examples, n dimension of each exmaple)
@@ -64,6 +63,9 @@ class CrossEntropy:
         c_log_out = np.trace(C.T @ log_out)
 
         return -1/m * c_log_out
+
+    def step(self, opt, W):
+        opt.step(self.grad_W, W)
 
 
 class Softmax:

@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.utils import shuffle
 from data_loader import loadGMMData
-from softmax import *
+from functionals import *
 from tqdm import tqdm
 
 
