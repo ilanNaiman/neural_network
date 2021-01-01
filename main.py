@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.utils import shuffle
-from data_loader import loadGMMData
+from data_loader import loadGMMData, loadSwissRollData
 from functionals import *
 from tqdm import tqdm
 from optimizers import *
@@ -11,7 +11,7 @@ from neural_network import Net
 def main():
     # Load data
 
-    Xtrain, Xtest, Ytrain, Ytest = loadGMMData()
+    Xtrain, Xtest, Ytrain, Ytest = loadSwissRollData()
 
     # Define set of learing rate and batch size
     learning_rate = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5]
@@ -25,17 +25,17 @@ def main():
     test_sets = prepare_batches(Xtest, Ytest, batch_size)
 
     # hyper params
-    n_layer = 2
-    dim_in = 5
-    dim_out = 5
-    epochs = 30
+    n_layer = 1
+    dim_in = 2
+    dim_out = 2
+    epochs = 5
     opt = SGD(lr=0.01)
 
     model = Net(n_layer, dim_in, dim_out, opt)
 
     # train loop
 
-    all_batches, all_labels = train_sets[2]
+    all_batches, all_labels = train_sets[1]
 
     accs_hyper_params_train = []
     accs_hyper_params_test = []
@@ -54,6 +54,7 @@ def main():
             model.backward()
             model.step()
 
+            outputs = model.softmax(outputs)
             # calculate train error
             labels = get_index(labels)
             prediction = predict(model, outputs)
@@ -63,7 +64,7 @@ def main():
         print('Epoch {} train acc: {}  train loss: {}'.format(e, np.mean(acc_train), np.mean(loss_l)))
 
         accs_hyper_params_train.append(np.mean(acc_train))
-        accs_hyper_params_test.append(np.mean(test_accuracy(model, test_sets[2])))
+        accs_hyper_params_test.append(np.mean(test_accuracy(model, test_sets[1])))
 
     # plt.plot(range(epochs), accs_hyper_params_train, label='Train Accuracy')
     # plt.plot(range(epochs), accs_hyper_params_test, label='Validation Accuracy')
@@ -84,6 +85,8 @@ def test_accuracy(model, test_sets):
 
         loss = model.cross_entropy(outputs, model.softmax.W, labels)
         loss_test.append(loss)
+
+        outputs = model.softmax(outputs)
 
         # calculate train error
         labels = get_index(labels)
@@ -117,8 +120,7 @@ def predict(model, output):
 
 
 def softmax_predict(model, output):
-    softmax_res = model.softmax(output)
-    max_args = np.argmax(softmax_res, axis=1).reshape(-1, 1)
+    max_args = np.argmax(output, axis=1).reshape(-1, 1)
     return max_args
 
 

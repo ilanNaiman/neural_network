@@ -8,8 +8,10 @@ class Net:
 
     def __init__(self, n_layer, dim_in, dim_out, opt):
 
+        assert n_layer > 0
+
         self.act = tanh
-        self.dim_L = 128
+        self.dim_L = 8
         self.dim_in = dim_in
         self.dim_out = dim_out
         self.n_layer = n_layer
@@ -19,15 +21,20 @@ class Net:
         self.opt = opt
         self.labels = None
 
-        self.softmax = Softmax(self.dim_L if n_layer > 0 else self.dim_in, self.dim_out)
+        self.softmax = None
         self.cross_entropy = CrossEntropy()
         self._init_layers()
 
     def _init_layers(self):
 
-        self.linear_inp = Linear(self.dim_in, self.dim_L, self.act)
-        for n in range(self.n_layer):
-            self.layers.append(Linear(self.dim_L, self.dim_L, self.act))
+        if self.n_layer == 1:
+            self.softmax = Softmax(self.dim_in, self.dim_out)
+
+        else:
+            self.linear_inp = Linear(self.dim_in, self.dim_L, self.act)
+            for n in range(self.n_layer - 2):
+                self.layers.append(Linear(self.dim_L, self.dim_L, self.act))
+            self.softmax = Softmax(self.dim_L, self.dim_out)
 
     def __call__(self, input_, labels):
         """
@@ -41,14 +48,15 @@ class Net:
         # save labels for backward pass
         self.labels = labels
 
-        # applies also the activation function
-        self.hidden_units.append(self.linear_inp(input_))
+        if self.linear_inp is not None:
+            # applies also the activation function
+            self.hidden_units.append(self.linear_inp(input_))
 
         # forward pass through hidden layers
         for layer in self.layers:
             self.hidden_units.append(layer(self.hidden_units[-1]))
 
-        return  self.hidden_units[-1]
+        return self.hidden_units[-1]
 
     def backward(self):
 
@@ -59,17 +67,20 @@ class Net:
         self.cross_entropy.grad_w(hidden_units[0], self.softmax.W, self.labels)
         inp_grads = self.cross_entropy.grad_inp(hidden_units[0], self.softmax.W, self.labels)
 
-        for i, layer in enumerate(self.layers, 1):
+        # linear layers grads in reverse order
+        for i, layer in enumerate(reversed(self.layers), 1):
             layer.backward(hidden_units[i], inp_grads)
             inp_grads = layer.g_x
 
-        self.linear_inp.backward(hidden_units[-1], inp_grads)
+        if self.linear_inp is not None:
+            self.linear_inp.backward(hidden_units[-1], inp_grads)
 
     def step(self):
 
         self.cross_entropy.step(self.opt, self.softmax.W)
 
-        for layer in self.layers:
+        for layer in reversed(self.layers):
             layer.step(self.opt)
 
-        self.linear_inp.step(self.opt)
+        if self.linear_inp is not None:
+            self.linear_inp.step(self.opt)

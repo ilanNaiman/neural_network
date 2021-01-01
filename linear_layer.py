@@ -19,18 +19,24 @@ class Linear:
         return np.random.randn(prev_layer, next_layer) * np.sqrt(2 / next_layer)
 
     def jackTMV_b(self, x, v):
-        return np.multiply(self.act.deriv((np.add(np.matmul(self.W, x), self.b))), v)
+        wx_b = self.W @ x + self.b
+        grad_batch = np.multiply(self.act.deriv(wx_b), v)
+        return np.mean(grad_batch, axis=1).reshape(self.b.shape[0], self.b.shape[-1])
 
     def jackTMV_w(self, x, v):
-        return np.matmul(np.multiply(self.act.deriv(np.add(np.matmul(self.W, x), self.b)), v), x.T)
+        wx_b = self.W @ x + self.b
+        res = np.multiply(self.act.deriv(wx_b), v) @ x.T
+        return res
 
     def jackTMV_x(self, x, v):
-        act_deriv = self.act.deriv(np.add(np.matmul(self.W, x), self.b))
+        wx_b = (self.W @ x) + self.b
+        act_deriv = self.act.deriv(wx_b)
         act_hadamard = np.multiply(act_deriv, v)
-        return np.matmul(self.W.T, act_hadamard)
+        return self.W.T @ act_hadamard
 
     def jackMV_x(self, x, v):
-        act_deriv = self.act.deriv(np.add(np.matmul(self.W, x), self.b))
+        wx_b = self.W @ x + self.b
+        act_deriv = self.act.deriv(wx_b)
         diag_act_deriv = np.diag(act_deriv.reshape(act_deriv.shape[0],))
         diag_w = np.matmul(diag_act_deriv, self.W)
         return np.matmul(diag_w, v)
@@ -59,7 +65,7 @@ class Linear:
         self.b = opt.step(self.g_b, self.b)
 
     def __call__(self, x):
-        return self.act.activate(np.add(np.matmul(self.W, x), self.b))
+        return self.act.activate((self.W @ x) + self.b)
 
 
 def jacMV_x_test():
@@ -161,24 +167,66 @@ def jacMV_w_test():
     plt.show()
 
 
-def jacTMV_test():
+def jacTMV_w_test():
     v = np.random.rand(3, 1)
     x = np.random.rand(3, 1)
     u = np.random.rand(3, 1)
     lin1 = Linear(3, 3, tanh)
-    jackMV_ = lin1.jackMV(x, v)
-    print(jackMV_)
+
+    jacMV_w = lin1.jackMV_w(x, v)
+
     lin1.backward(x, u)
-    jackTMV_ = lin1.g_x
-    print(jackTMV_)
-    u_jack = np.matmul(u.T, jackMV_)
-    v_jackT = np.matmul(v.T, jackTMV_)
+    jacTMV_w = lin1.g_w
+
+    u_jac = u.T @ jacMV_w
+    v_jacT = v.T @ jacTMV_w
+
+    print(abs(np.subtract(u_jac, v_jacT)))
+
+
+def jacTMV_b_test():
+    v = np.random.rand(3, 1)
+    x = np.random.rand(3, 1)
+    u = np.random.rand(3, 1)
+    lin1 = Linear(3, 3, tanh)
+
+    jackMV_b = lin1.jackMV_b(x, v)
+
+
+    lin1.backward(x, u)
+    jackTMV_b = lin1.g_b
+
+
+    u_jack = u.T @ jackMV_b
+    v_jackT = v.T @ jackTMV_b
+
     print(abs(np.subtract(u_jack, v_jackT)))
+
+
+def jacTMV_x_test():
+    v = np.random.rand(3, 1)
+    x = np.random.rand(3, 1)
+    u = np.random.rand(3, 1)
+    lin1 = Linear(3, 3, tanh)
+
+    jacMV_x = lin1.jackMV_x(x, v)
+
+
+    lin1.backward(x, u)
+    jacTMV_x = lin1.g_x
+
+
+    u_jac = u.T @ jacMV_x
+    v_jacT = v.T @ jacTMV_x
+
+    print(abs(np.subtract(u_jac, v_jacT)))
 
 
 # jacTMV_test()
 # jacMV_x_test()
-# jacMV_b_test()
+jacTMV_b_test()
+jacTMV_x_test()
+jacTMV_w_test()
 # jacMV_w_test()
 # def pre:
 #     sample = random.sample(list(range(X.shape[1])), batch_size)
