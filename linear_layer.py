@@ -46,7 +46,7 @@ class Linear:
         act_deriv = self.act.deriv(wx_b)
         diag_act = np.diag(act_deriv.reshape(act_deriv.shape[0],))
         x_kron_id = np.kron(x.T, np.eye(self.W.shape[-1]))
-        return (diag_act @ x_kron_id) @ v
+        return (diag_act @ x_kron_id) @ v.reshape(v.shape[0], 1)
 
     def jackMV_b(self, x, v):
         act_deriv = self.act.deriv(np.add(np.matmul(self.W, x), self.b))
@@ -150,14 +150,17 @@ def jacMV_w_test():
     for eps in eps_vals:
 
         eps_d = eps * normalized_d
-        lin1.W = np.add(w, eps_d)
 
+        lin1.W = np.add(w, eps_d)
         fx_d = lin1(x)
 
-        jackMV_w = lin1.jackMV_w(x, eps_d.ravel())
+        jacMV_w = lin1.jackMV_w(x, eps_d.ravel())
 
-        no_grad.append(np.linalg.norm(np.subtract(fx_d, fx)))
-        w_grad.append(np.linalg.norm(np.subtract(np.subtract(fx_d, fx), jackMV_w)))
+        first_order = fx_d - fx
+        second_order = first_order - jacMV_w
+
+        no_grad.append(np.linalg.norm(first_order))
+        w_grad.append(np.linalg.norm(second_order))
 
     l = range(eps_num)
     plt.plot(l, no_grad, 'k', label='No gradient')
@@ -224,9 +227,10 @@ def jacTMV_x_test():
 
 # jacTMV_test()
 # jacMV_x_test()
-jacTMV_b_test()
-jacTMV_x_test()
-jacTMV_w_test()
+# jacTMV_b_test()
+# jacTMV_x_test()
+# jacTMV_w_test()
+jacMV_w_test()
 # jacMV_w_test()
 # def pre:
 #     sample = random.sample(list(range(X.shape[1])), batch_size)
