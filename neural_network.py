@@ -11,7 +11,7 @@ class Net:
         assert n_layer > 0
 
         self.act = tanh
-        self.dim_L = 8
+        self.dim_L = 200
         self.dim_in = dim_in
         self.dim_out = dim_out
         self.n_layer = n_layer
@@ -22,7 +22,8 @@ class Net:
         self.labels = None
 
         self.softmax = None
-        self.cross_entropy = CrossEntropy()
+        self.cross_entropy = None
+
         self._init_layers()
 
     def _init_layers(self):
@@ -35,6 +36,7 @@ class Net:
             for n in range(self.n_layer - 2):
                 self.layers.append(Linear(self.dim_L, self.dim_L, self.act))
             self.softmax = Softmax(self.dim_L, self.dim_out)
+            self.cross_entropy = CrossEntropy(self.softmax.W)
 
     def __call__(self, input_, labels):
         """
@@ -64,8 +66,8 @@ class Net:
         hidden_units.reverse()
 
         # cross entropy grad
-        self.cross_entropy.grad_w(hidden_units[0], self.softmax.W, self.labels)
-        inp_grads = self.cross_entropy.grad_inp(hidden_units[0], self.softmax.W, self.labels)
+        self.cross_entropy.grad_w(hidden_units[0], self.labels)
+        inp_grads = self.cross_entropy.grad_inp(hidden_units[0], self.labels)
 
         # linear layers grads in reverse order
         for i, layer in enumerate(reversed(self.layers), 1):
@@ -77,7 +79,8 @@ class Net:
 
     def step(self):
 
-        self.cross_entropy.step(self.opt, self.softmax.W)
+        self.cross_entropy.step(self.opt)
+        self.softmax.W = self.cross_entropy.W
 
         for layer in reversed(self.layers):
             layer.step(self.opt)

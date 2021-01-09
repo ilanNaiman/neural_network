@@ -8,11 +8,11 @@ from tqdm import tqdm
 
 class CrossEntropy:
 
-    def __init__(self):
+    def __init__(self, W):
         self.grad_W = None
-        return
+        self.W = W
 
-    def grad_w(self, X, W, C):
+    def grad_w(self, X, C):
         """
         :param X: dim(L-1) * m (m number of examples, n dimension of each exmaple)
         :param W : dim(L-1) * nlabels
@@ -22,7 +22,7 @@ class CrossEntropy:
         m = X.shape[-1]
 
         # use for all calculations
-        x_w = np.exp(X.T @ W) # m * nlabels
+        x_w = np.exp(X.T @ self.W) # m * nlabels
         stacked_x_w = np.array(x_w.sum(axis=1)) # m * 1
         diag = np.linalg.inv(np.diag(stacked_x_w)) # m * m diag
         diag_exp = diag @ x_w # m * nlabels
@@ -30,7 +30,7 @@ class CrossEntropy:
         e = np.subtract(diag_exp, C) # m * nlabels
         self.grad_W = 1/m * np.matmul(X, e)
 
-    def grad_inp(self, X, W, C):
+    def grad_inp(self, X, C):
         """
         :self.W : dim(L-1) * nlabels weights
         :param X: dim(L-1) * m (m number of examples, n dimension of each exmaple)
@@ -41,14 +41,14 @@ class CrossEntropy:
         m = X.shape[-1]
 
         # use for all calculations
-        w_x = np.exp(np.matmul(W.T, X)) # n * m
+        w_x = np.exp(np.matmul(self.W.T, X)) # n * m
         stacked_x_w = np.array(w_x.sum(axis=0)) # 1 * m
         rep_w_x = npm.repmat(stacked_x_w, w_x.shape[0], 1) # n * m
         div_w_x = np.divide(w_x, rep_w_x) # n * m
         subc_w_x = np.subtract(div_w_x, C.T) # n * m
-        return 1/m * np.matmul(W, subc_w_x) # d * m
+        return 1/m * np.matmul(self.W, subc_w_x) # d * m
 
-    def __call__(self, X, W, C):
+    def __call__(self, X, C):
         """
         :param X: dim(L-1) * m (m number of examples, n dimension of each exmaple)
         :param W : dim(L-1) * nlabels
@@ -57,7 +57,7 @@ class CrossEntropy:
         """
         m = X.shape[-1]
 
-        x_w = np.exp(X.T @ W) # m * nlabels
+        x_w = np.exp(X.T @ self.W) # m * nlabels
         stacked_x_w = np.array(x_w.sum(axis=1)) # m * 1
         diag = np.linalg.inv(np.diag(stacked_x_w)) # m * m diag
         log_out = np.log(diag @ x_w) # m * nlabels
@@ -65,8 +65,8 @@ class CrossEntropy:
 
         return -1/m * c_log_out
 
-    def step(self, opt, W):
-        opt.step(self.grad_W, W)
+    def step(self, opt):
+        opt.step(self.grad_W, self.W)
 
 
 class Softmax:
@@ -78,6 +78,7 @@ class Softmax:
 
     def _init_weights(self, prev_layer, next_layer):
         return np.random.randn(prev_layer, next_layer) * np.sqrt(2 / next_layer)
+        # return np.random.uniform(-1, 1, size=(prev_layer, next_layer)) * np.sqrt(6./(prev_layer + next_layer))
 
     def __call__(self, X):
         """

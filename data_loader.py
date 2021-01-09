@@ -24,3 +24,13 @@ def loadSwissRollData():
     return Xtrain, Xtest, Ytrain, Ytest
 
 
+def loadPeaksData():
+
+    data = loadmat('NNdata/PeaksData.mat')
+
+    Xtrain = data['Yt']
+    Xtest = data['Yv']
+    Ytrain = data['Ct']
+    Ytest = data['Cv']
+
+    return Xtrain, Xtest, Ytrain, Ytest

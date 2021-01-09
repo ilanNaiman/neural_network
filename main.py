@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.utils import shuffle
-from data_loader import loadGMMData, loadSwissRollData
+from scipy.sparse import coo_matrix
+from data_loader import loadGMMData, loadSwissRollData, loadPeaksData
 from functionals import *
 from tqdm import tqdm
 from optimizers import *
@@ -18,37 +19,45 @@ def main():
     batch_size = np.geomspace(2, 2 ** 8, 8)
     batch_size = [round_(i) for i in batch_size]
 
-    Xtrain, Ytrain = shuffle(Xtrain, Ytrain, random_state=2021)
+    nlabels = Ytrain.shape[0]
+    Ytrain_shuffle = get_index2(Ytrain)
+    Xtrain_shuufle = Xtrain.T
+    X_sparse = coo_matrix(Xtrain_shuufle)
+    Xtrain, X_sparse, Ytrain = shuffle(Xtrain_shuufle, X_sparse, Ytrain_shuffle, random_state=2021)
+    Ytrain = get_onehot(Ytrain, nlabels).T
+    Xtrain = Xtrain.T
 
     # split the data into train sets of different mini batch sizes
     train_sets = prepare_batches(Xtrain, Ytrain, batch_size)
     test_sets = prepare_batches(Xtest, Ytest, batch_size)
 
     # hyper params
-    n_layer = 1
-    dim_in = 2
-    dim_out = 2
-    epochs = 5
-    opt = SGD(lr=0.01)
+    n_layer = 4
+    dim_in = Xtrain.shape[0]
+    dim_out = Ytrain.shape[0]
+    epochs = 60
+    lr = 0.00999
+    opt = SGD(lr=lr)
 
     model = Net(n_layer, dim_in, dim_out, opt)
 
     # train loop
 
-    all_batches, all_labels = train_sets[1]
+    all_batches, all_labels = train_sets[5]
 
     accs_hyper_params_train = []
     accs_hyper_params_test = []
 
-    for e in range(epochs):
+    for e in range(1, epochs):
         acc_train = []
         loss_l = []
         for batch, labels in tqdm(zip(all_batches, all_labels)):
+
             labels = labels.T
 
             outputs = model(batch, labels)
 
-            loss = model.cross_entropy(outputs, model.softmax.W, labels)
+            loss = model.cross_entropy(outputs, labels)
             loss_l.append(loss)
 
             model.backward()
@@ -63,8 +72,22 @@ def main():
 
         print('Epoch {} train acc: {}  train loss: {}'.format(e, np.mean(acc_train), np.mean(loss_l)))
 
+        if e % 10 == 0:
+            lr += 3e-3
+            model.opt = SGD(lr=lr)
+
+        if e == 45:
+            model.opt = SGD(lr=0.00996)
+
         accs_hyper_params_train.append(np.mean(acc_train))
-        accs_hyper_params_test.append(np.mean(test_accuracy(model, test_sets[1])))
+        accs_hyper_params_test.append(np.mean(test_accuracy(model, test_sets[5])))
+
+
+    plt.plot(range(1, epochs), accs_hyper_params_train, label='Train Accuracy')
+    plt.plot(range(1, epochs), accs_hyper_params_test, label='Validation Accuracy')
+    plt.title('Acc of lr={} and batch size={}'.format(lr, 64))
+    plt.legend()
+    plt.show()
 
     # plt.plot(range(epochs), accs_hyper_params_train, label='Train Accuracy')
     # plt.plot(range(epochs), accs_hyper_params_test, label='Validation Accuracy')
@@ -83,7 +106,7 @@ def test_accuracy(model, test_sets):
         # calculate test acc
         outputs = model(batch, labels)
 
-        loss = model.cross_entropy(outputs, model.softmax.W, labels)
+        loss = model.cross_entropy(outputs, labels)
         loss_test.append(loss)
 
         outputs = model.softmax(outputs)
@@ -113,6 +136,20 @@ def init_weights(prev_layer, next_layer):
 
 def get_index(labels):
     return np.asarray([np.where(l == 1)[0][0] for l in labels])
+
+
+def get_index2(labels):
+    out = []
+    for l in labels.T:
+        jj = np.where(l == 1)
+        out.append(jj[0][0])
+    return np.asarray(out)
+
+
+def get_onehot(labels, nlables):
+    c = np.zeros((labels.size, nlables))  # 10 samples, 3 labels
+    c[np.arange(labels.size), labels] = 1  # columns in c are one-hot encoded
+    return c
 
 
 def predict(model, output):

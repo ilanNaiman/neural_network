@@ -17,46 +17,58 @@ class Linear:
 
     def _init_weights(self, prev_layer, next_layer):
         return np.random.randn(prev_layer, next_layer) * np.sqrt(2 / next_layer)
+        # return np.random.uniform(-1, 1, size=(prev_layer, next_layer)) * np.sqrt(6./(prev_layer + next_layer))
 
-    def jackTMV_b(self, x, v):
+    def jacTMV_b(self, x, v):
         wx_b = self.W @ x + self.b
         grad_batch = np.multiply(self.act.deriv(wx_b), v)
         return np.mean(grad_batch, axis=1).reshape(self.b.shape[0], self.b.shape[-1])
 
-    def jackTMV_w(self, x, v):
+    def jacTMV_w(self, x, v):
         wx_b = self.W @ x + self.b
-        res = np.multiply(self.act.deriv(wx_b), v) @ x.T
-        return res
+        return 1/x.shape[-1] * np.multiply(self.act.deriv(wx_b), v) @ x.T
 
-    def jackTMV_x(self, x, v):
+    def jacTMV_x(self, x, v):
         wx_b = (self.W @ x) + self.b
         act_deriv = self.act.deriv(wx_b)
         act_hadamard = np.multiply(act_deriv, v)
         return self.W.T @ act_hadamard
 
-    def jackMV_x(self, x, v):
+    def jacMV_x(self, x, v):
         wx_b = self.W @ x + self.b
         act_deriv = self.act.deriv(wx_b)
         diag_act_deriv = np.diag(act_deriv.reshape(act_deriv.shape[0],))
         diag_w = np.matmul(diag_act_deriv, self.W)
         return np.matmul(diag_w, v)
 
-    def jackMV_w(self, x, v):
+    # w: k*n
+    # x: n*1
+    # b: k*1
+    # v: kn * 1 after raveling (k*n)
+    # def jacMV_w(self, x, v):
+    #     wx_b = self.W @ x + self.b
+    #     act_deriv = self.act.deriv(wx_b)
+    #     # act_deriv = wx_b
+    #     diag_act = np.diag(act_deriv.reshape(act_deriv.shape[0],))
+    #     x_kron_id = np.kron(x.T, np.eye(self.W.shape[0]))
+    #     return (diag_act @ x_kron_id) @ v
+
+    def jacMV_w(self, x, v):
         wx_b = self.W @ x + self.b
         act_deriv = self.act.deriv(wx_b)
-        diag_act = np.diag(act_deriv.reshape(act_deriv.shape[0],))
-        x_kron_id = np.kron(x.T, np.eye(self.W.shape[-1]))
-        return (diag_act @ x_kron_id) @ v.reshape(v.shape[0], 1)
+        # act_deriv = wx_b
+        diag_act = np.multiply(act_deriv, (v @ x))
+        return diag_act
 
-    def jackMV_b(self, x, v):
+    def jacMV_b(self, x, v):
         act_deriv = self.act.deriv(np.add(np.matmul(self.W, x), self.b))
         diag_act_deriv = np.diag(act_deriv.reshape(act_deriv.shape[0],))
         return diag_act_deriv @ v
 
     def backward(self, x, v):
-        self.g_x = self.jackTMV_x(x, v)
-        self.g_w = self.jackTMV_w(x, v)
-        self.g_b = self.jackTMV_b(x, v)
+        self.g_x = self.jacTMV_x(x, v)
+        self.g_w = self.jacTMV_w(x, v)
+        self.g_b = self.jacTMV_b(x, v)
         # self.v = np.matmul(self.g_x.T, v)
 
     def step(self, opt):
@@ -65,6 +77,7 @@ class Linear:
         self.b = opt.step(self.g_b, self.b)
 
     def __call__(self, x):
+        # return self.W @ x + self.b
         return self.act.activate((self.W @ x) + self.b)
 
 
@@ -83,7 +96,7 @@ def jacMV_x_test():
         e_normalized_d = eps * normalized_d
         x_perturbatzia = np.add(x, e_normalized_d)
         fx_d = lin1(x_perturbatzia)
-        jackMV_x = lin1.jackMV_x(x, e_normalized_d)
+        jackMV_x = lin1.jacMV_x(x, e_normalized_d)
         print(jackMV_x)
         print('epsilon: ', eps)
         print(np.linalg.norm(np.subtract(fx_d, fx)))
@@ -120,7 +133,7 @@ def jacMV_b_test():
 
         fx_d = lin1(x)
 
-        jackMV_b = lin1.jackMV_b(x, eps_d)
+        jackMV_b = lin1.jacMV_b(x, eps_d)
 
         no_grad.append(np.linalg.norm(np.subtract(fx_d, fx)))
         b_grad.append(np.linalg.norm(np.subtract(np.subtract(fx_d, fx), jackMV_b)))
@@ -134,14 +147,14 @@ def jacMV_b_test():
 
 
 def jacMV_w_test():
-    d = np.random.rand(3, 3)
+    d = np.random.rand(4, 3)
     x = np.random.rand(3, 1)
-    normalized_d = d / np.linalg.norm(d)
+    # normalized_d = d / np.linalg.norm(d)
 
     eps_num = 20
     eps_vals = np.geomspace(0.5, 0.5 ** eps_num, eps_num)
 
-    lin1 = Linear(3, 3, tanh)
+    lin1 = Linear(3, 4, tanh)
     fx = lin1(x)
 
     no_grad, w_grad = [], []
@@ -149,12 +162,13 @@ def jacMV_w_test():
 
     for eps in eps_vals:
 
-        eps_d = eps * normalized_d
+        eps_d = eps * d
 
         lin1.W = np.add(w, eps_d)
         fx_d = lin1(x)
 
-        jacMV_w = lin1.jackMV_w(x, eps_d.ravel())
+        # eps_d = eps_d.reshape(-1, 1)
+        jacMV_w = lin1.jacMV_w(x, eps_d)
 
         first_order = fx_d - fx
         second_order = first_order - jacMV_w
@@ -171,18 +185,18 @@ def jacMV_w_test():
 
 
 def jacTMV_w_test():
-    v = np.random.rand(3, 1)
+    v = np.random.rand(4, 3)
     x = np.random.rand(3, 1)
-    u = np.random.rand(3, 1)
-    lin1 = Linear(3, 3, tanh)
+    u = np.random.rand(4, 1)
+    lin1 = Linear(3, 4, tanh)
 
-    jacMV_w = lin1.jackMV_w(x, v)
+    jacMV_w = lin1.jacMV_w(x, v)
 
     lin1.backward(x, u)
     jacTMV_w = lin1.g_w
 
     u_jac = u.T @ jacMV_w
-    v_jacT = v.T @ jacTMV_w
+    v_jacT = v.ravel().T @ jacTMV_w.ravel()
 
     print(abs(np.subtract(u_jac, v_jacT)))
 
@@ -193,7 +207,7 @@ def jacTMV_b_test():
     u = np.random.rand(3, 1)
     lin1 = Linear(3, 3, tanh)
 
-    jackMV_b = lin1.jackMV_b(x, v)
+    jackMV_b = lin1.jacMV_b(x, v)
 
 
     lin1.backward(x, u)
@@ -212,7 +226,7 @@ def jacTMV_x_test():
     u = np.random.rand(3, 1)
     lin1 = Linear(3, 3, tanh)
 
-    jacMV_x = lin1.jackMV_x(x, v)
+    jacMV_x = lin1.jacMV_x(x, v)
 
 
     lin1.backward(x, u)
@@ -230,7 +244,7 @@ def jacTMV_x_test():
 # jacTMV_b_test()
 # jacTMV_x_test()
 # jacTMV_w_test()
-jacMV_w_test()
+# jacMV_w_test()
 # jacMV_w_test()
 # def pre:
 #     sample = random.sample(list(range(X.shape[1])), batch_size)
