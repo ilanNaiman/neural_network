@@ -15,7 +15,7 @@ class CrossEntropy:
     def grad_w(self, X, C):
         """
         :param X: dim(L-1) * m (m number of examples, n dimension of each exmaple)
-        :param W : dim(L-1) * nlabels
+        :param W: dim(L-1) * nlabels
         :param C: m * nlables
         :return: grad dim(L-1) * nlabels
         """

@@ -6,12 +6,12 @@ from functionals import Softmax, CrossEntropy
 
 class Net:
 
-    def __init__(self, n_layer, dim_in, dim_out, opt):
+    def __init__(self, n_layer, dim_in, dim_out, opt, neurons):
 
         assert n_layer > 0
 
         self.act = tanh
-        self.dim_L = 200
+        self.dim_L = neurons
         self.dim_in = dim_in
         self.dim_out = dim_out
         self.n_layer = n_layer
@@ -27,6 +27,10 @@ class Net:
         self._init_layers()
 
     def _init_layers(self):
+        """
+        if got only 1 layer, initialize the softmax only
+        else layer > 1, initialize in a loop
+        """
 
         if self.n_layer == 1:
             self.softmax = Softmax(self.dim_in, self.dim_out)
@@ -41,8 +45,8 @@ class Net:
     def __call__(self, input_, labels):
         """
         forward pass of the network
-        :param input_:
-        :param labels:
+        :param input_: input data
+        :param labels: labels
         :return:
         """
 
