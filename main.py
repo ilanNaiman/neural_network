@@ -16,13 +16,13 @@ parser.add_argument('--iter', type=int, default=60,
                     help='number of iteration to train (default: 60)')
 # parser.add_argument('--optimizer', type=str, default='SGD',
 #                     choices=['SGD'], help='optimizer: choices SGD')
-parser.add_argument('--lr', type=float, default=0.00999,
+parser.add_argument('--lr', type=float, default=0.055,
                     help='learning rate (default: 0.00999)')
-parser.add_argument('--lr_decay', type=float, default=0.00996, help='learning rate decay value (default: 0.00996)')
+parser.add_argument('--lr_decay', type=float, default=0.01, help='learning rate decay value (default: 0.00996)')
 parser.add_argument('--lr_decay_epoch', type=int, nargs='+', default=[45],
                     help='decrease learning rate at these epochs.')
 parser.add_argument('--lr_increase', type=float, default=3e-3, help='learning rate decay value (default: 3e-3)')
-parser.add_argument('--lr_increase_epoch', type=int, nargs='+', default=[10],
+parser.add_argument('--lr_increase_epoch', type=int, nargs='+', default=[5],
                     help='decrease learning rate at these epochs.')
 parser.add_argument('--batch_size', type=int, default=64,
                     help='size of batch size (default: 64)')
