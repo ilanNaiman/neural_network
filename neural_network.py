@@ -40,7 +40,7 @@ class Net:
             for n in range(self.n_layer - 2):
                 self.layers.append(Linear(self.dim_L, self.dim_L, self.act))
             self.softmax = Softmax(self.dim_L, self.dim_out)
-            self.cross_entropy = CrossEntropy(self.softmax.W)
+        self.cross_entropy = CrossEntropy(self.softmax.W)
 
     def __call__(self, input_, labels):
         """

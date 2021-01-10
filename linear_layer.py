@@ -17,7 +17,6 @@ class Linear:
 
     def _init_weights(self, prev_layer, next_layer):
         return np.random.randn(prev_layer, next_layer) * np.sqrt(2 / next_layer)
-        # return np.random.uniform(-1, 1, size=(prev_layer, next_layer)) * np.sqrt(6./(prev_layer + next_layer))
 
     def jacTMV_b(self, x, v):
         wx_b = self.W @ x + self.b
@@ -26,7 +25,7 @@ class Linear:
 
     def jacTMV_w(self, x, v):
         wx_b = self.W @ x + self.b
-        return 1/x.shape[-1] * np.multiply(self.act.deriv(wx_b), v) @ x.T
+        return np.multiply(self.act.deriv(wx_b), v) @ x.T
 
     def jacTMV_x(self, x, v):
         wx_b = (self.W @ x) + self.b
@@ -41,22 +40,9 @@ class Linear:
         diag_w = np.matmul(diag_act_deriv, self.W)
         return np.matmul(diag_w, v)
 
-    # w: k*n
-    # x: n*1
-    # b: k*1
-    # v: kn * 1 after raveling (k*n)
-    # def jacMV_w(self, x, v):
-    #     wx_b = self.W @ x + self.b
-    #     act_deriv = self.act.deriv(wx_b)
-    #     # act_deriv = wx_b
-    #     diag_act = np.diag(act_deriv.reshape(act_deriv.shape[0],))
-    #     x_kron_id = np.kron(x.T, np.eye(self.W.shape[0]))
-    #     return (diag_act @ x_kron_id) @ v
-
     def jacMV_w(self, x, v):
         wx_b = self.W @ x + self.b
         act_deriv = self.act.deriv(wx_b)
-        # act_deriv = wx_b
         diag_act = np.multiply(act_deriv, (v @ x))
         return diag_act
 
@@ -69,7 +55,6 @@ class Linear:
         self.g_x = self.jacTMV_x(x, v)
         self.g_w = self.jacTMV_w(x, v)
         self.g_b = self.jacTMV_b(x, v)
-        # self.v = np.matmul(self.g_x.T, v)
 
     def step(self, opt):
         assert self.g_w is not None
@@ -77,11 +62,5 @@ class Linear:
         self.b = opt.step(self.g_b, self.b)
 
     def __call__(self, x):
-        # return self.W @ x + self.b
         return self.act.activate((self.W @ x) + self.b)
 
-
-# def pre:
-#     sample = random.sample(list(range(X.shape[1])), batch_size)
-#     batch_X = X[:][sample]
-#     batch_C = C[:][sample]

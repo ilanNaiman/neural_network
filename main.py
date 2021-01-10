@@ -12,12 +12,12 @@ from neural_network import Net
 
 parser = argparse.ArgumentParser(description='FeedForward Neural Network')
 
-parser.add_argument('--iter', type=int, default=60,
-                    help='number of iteration to train (default: 60)')
+parser.add_argument('--iter', type=int, default=15,
+                    help='number of iteration to train (default: 15)')
 # parser.add_argument('--optimizer', type=str, default='SGD',
 #                     choices=['SGD'], help='optimizer: choices SGD')
-parser.add_argument('--lr', type=float, default=0.055,
-                    help='learning rate (default: 0.00999)')
+parser.add_argument('--lr', type=float, default=0.1,
+                    help='learning rate (default: 0.1)')
 parser.add_argument('--lr_decay', type=float, default=0.01, help='learning rate decay value (default: 0.00996)')
 parser.add_argument('--lr_decay_epoch', type=int, nargs='+', default=[45],
                     help='decrease learning rate at these epochs.')
@@ -109,12 +109,16 @@ def main():
 
     plt.plot(range(1, epochs), accs_hyper_params_train, label='Train Accuracy')
     plt.plot(range(1, epochs), accs_hyper_params_test, label='Validation Accuracy')
-    plt.title('{} Data set, Acc of last lr={} and batch size={}'.format(args.data_set, lr, args.batch_size))
-    plt.savefig('./Test_Figures/{} Data set, Acc of last lr={} and batch size={}.pdf'.format(args.data_set, lr,
-                                                                                             args.batch_size),
-                transparent=True, bbox_inches='tight', pad_inches=0)
+    plt.title('{} Data set, lr={:.5f} and batch size={}'.format(args.data_set, args.lr, args.batch_size))
     plt.legend()
+    plt.savefig('./Test_Figures/{} Data set, lr={:.5f} and batch size={}.pdf'.format(args.data_set, args.lr,
+                                                                                     args.batch_size),
+                transparent=True, bbox_inches='tight', pad_inches=0)
+    plt.savefig('./Test_Figures/{} Data set, lr={:.5f} and batch size={}.png'.format(args.data_set, args.lr,
+                                                                                     args.batch_size),
+                transparent=True, bbox_inches='tight', pad_inches=0)
     plt.show()
+
 
 def test_accuracy(model, test_sets):
     # test loop

@@ -78,7 +78,6 @@ class Softmax:
 
     def _init_weights(self, prev_layer, next_layer):
         return np.random.randn(prev_layer, next_layer) * np.sqrt(2 / next_layer)
-        # return np.random.uniform(-1, 1, size=(prev_layer, next_layer)) * np.sqrt(6./(prev_layer + next_layer))
 
     def __call__(self, X):
         """

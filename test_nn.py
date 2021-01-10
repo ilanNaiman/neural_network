@@ -7,6 +7,7 @@ from optimizers import SGD
 from tqdm import tqdm
 from linear_layer import Linear
 from activations import tanh
+from neural_network import Net
 import sys
 import argparse
 from scipy.sparse import coo_matrix
@@ -14,23 +15,23 @@ from scipy.sparse import coo_matrix
 
 parser = argparse.ArgumentParser(description='Test FeedForward Neural Network')
 
-parser.add_argument('--iter', type=int, default=5,
-                    help='number of iteration to train (default: 60)')
+parser.add_argument('--iter', type=int, default=3,
+                    help='number of iteration to train (default: 3)')
 # parser.add_argument('--optimizer', type=str, default='SGD',
 #                     choices=['SGD'], help='optimizer: choices SGD')
-parser.add_argument('--lr', type=float, default=0.005,
-                    help='learning rate (default: 0.00999)')
+parser.add_argument('--lr', type=float, default=0.001,
+                    help='learning rate (default: 0.001)')
 parser.add_argument('--lr_decay', type=float, default=0.01, help='learning rate decay value (default: 0.00996)')
 parser.add_argument('--lr_decay_epoch', type=int, nargs='+', default=[45],
                     help='decrease learning rate at these epochs.')
 parser.add_argument('--lr_increase', type=float, default=3e-3, help='learning rate decay value (default: 3e-3)')
 parser.add_argument('--lr_increase_epoch', type=int, nargs='+', default=[5],
                     help='decrease learning rate at these epochs.')
-parser.add_argument('--batch_size', type=int, default=64,
+parser.add_argument('--batch_size', type=int, default=32,
                     help='size of batch size (default: 64)')
 parser.add_argument('--n_layers', type=int, default=4,
                     help='number of layers (default: 4)')
-parser.add_argument('--neurons', type=int, default=200,
+parser.add_argument('--neurons', type=int, default=100,
                     help='size of neurons in each layer (default: 200)')
 parser.add_argument('--data_set', type=str, default='SwissRollData',
                     choices=['SwissRollData', 'GMMData', 'PeaksData'],
@@ -217,7 +218,7 @@ def sgd_test():
 
     plt.plot(range(args.iter), accs_hyper_params_train, label='Train Accuracy')
     plt.plot(range(args.iter), accs_hyper_params_test, label='Validation Accuracy')
-    plt.title('{} Set, Acc of lr={} and batch size={}'.format(args.data_set, args.lr, args.batch_size))
+    plt.title('SGD test: {} Set, Acc of lr={} and batch size={}'.format(args.data_set, args.lr, args.batch_size))
     plt.legend()
     plt.savefig('./Test_Figures/{} Set, Acc of lr={} and batch size={}.png'
                 .format(args.data_set, args.lr, args.batch_size),
@@ -434,8 +435,119 @@ def jacMV_test():
 
 
 # section 6, gradient test for the whole network
+def network_grad_test():
+
+    # Load data
+
+    if args.data_set == 'SwissRollData':
+        Xtrain, Xtest, Ytrain, Ytest = loadSwissRollData()
+    elif args.data_set == 'GMMData':
+        Xtrain, Xtest, Ytrain, Ytest = loadGMMData()
+    else:
+        Xtrain, Xtest, Ytrain, Ytest = loadPeaksData()
+
+    # preprocess data - shuffle and split into different batch sizes (using batch_size list)
+    Xtrain, Ytrain, test_sets, train_sets = preprocess_data(Xtest, Xtrain, Ytest, Ytrain)
+
+    # hyper params
+    n_layer = args.n_layers
+    neurons = args.neurons
+    dim_in = Xtrain.shape[0]
+    dim_out = Ytrain.shape[0]
+
+    lr = args.lr
+    opt = SGD(lr=lr)
+
+    # init model
+    model = Net(n_layer, dim_in, dim_out, opt, neurons)
+
+    all_batches, all_labels = train_sets
+    batch = all_batches[0]
+    labels = all_labels[0].T
+
+    outputs = model(batch, labels)
+    f_x = model.cross_entropy(outputs, labels) # compute f(x)
+
+    # get the d vectors to perturb the weights
+    d_vecs = get_pertrubazia(model)
+
+    model.backward()  # compute grad(x) per layer
+
+    # concatenate grad per layer
+    grad_x = get_raveled_grads_per_layer(model)
+
+    # save weights of each layer, for testing:
+    weights_list = get_weights_from_layers(model)
+
+    # save the initial weights
+    w_ce = model.cross_entropy.W
+    w_li = model.linear_inp.W
+
+    first_order_l, second_order_l = [], []
+    eps_vals = np.geomspace(0.5, 0.5 ** 20, 20)
+
+    for eps in eps_vals:
+
+        eps_d = eps * d_vecs[0]
+        eps_ds = [eps_d.ravel()]
+        model.linear_inp.W = np.add(w_li, eps_d)
+        for d, ll, w in zip(d_vecs[1:-1], model.layers, weights_list[1:-1]):
+            eps_d = eps * d
+            ll.W = np.add(w, eps_d)
+            eps_ds.append(eps_d.ravel())
+        eps_d = eps * d_vecs[-1]
+        model.cross_entropy.W = np.add(w_ce, eps_d)
+        eps_ds.append(eps_d.ravel())
+        eps_ds = np.concatenate(eps_ds, axis=0)
+
+        output_d = model(batch, labels)
+        fx_d = model.cross_entropy(output_d, labels)
+
+        first_order = abs(fx_d - f_x)
+        second_order = abs(fx_d - f_x - eps_ds.ravel().T @ grad_x.ravel())
+
+        print(first_order)
+        print(second_order)
+
+        first_order_l.append(first_order)
+        second_order_l.append(second_order)
+
+    l = range(20)
+    plt.title('Network gradient test')
+    plt.plot(l, first_order_l, label='First Order')
+    plt.plot(l, second_order_l, label='Second Order')
+    plt.yscale('log')
+    plt.legend()
+    plt.savefig('./Test_Figures/grad_test_net.png', transparent=True, bbox_inches='tight', pad_inches=0)
+    plt.show()
 
 
-# sgd_test()
-jacMV_test()
+def get_weights_from_layers(model):
+    weights_list = [model.linear_inp.W]
+    for ll in model.layers:
+        weights_list.append(ll.W)
+    weights_list.append(model.cross_entropy.W)
+    return weights_list
+
+
+def get_raveled_grads_per_layer(model):
+    grad_x = [model.linear_inp.g_w.ravel()]
+    for ll in model.layers:
+        grad_x.append(ll.g_w.ravel())
+    grad_x.append(model.cross_entropy.grad_W.ravel())
+    grad_x = np.concatenate(grad_x, axis=0)
+    return grad_x
+
+
+def get_pertrubazia(model):
+    d_vecs = [np.random.rand(model.linear_inp.W.shape[0], model.linear_inp.W.shape[1])]
+    for ll in model.layers:
+        d_vecs.append(np.random.rand(ll.W.shape[0], ll.W.shape[1]))
+    d_vecs.append(np.random.rand(model.cross_entropy.W.shape[0], model.cross_entropy.W.shape[1]))
+    return [d / np.linalg.norm(d) for d in d_vecs]
+
+
+sgd_test()
+# jacMV_test()
 # new_grad_test()
+# network_grad_test()
